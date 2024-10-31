@@ -1,0 +1,209 @@
+services:
+
+  keycloak:
+    image: keycloak/keycloak:25.0
+    hostname: keycloak
+    command: start --https-certificate-file=/cert/fullchain.pem --https-certificate-key-file=/cert/privkey.pem
+    ports:
+      - "8443:8443"
+    env_file:
+      - ./envs/keycloak.env
+    volumes:
+      - ${CERTIFICATE_FULLCHAIN_PATH}:/cert/fullchain.pem:ro
+      - ${CERTIFICATE_PRIVKEY_PATH}:/cert/privkey.pem:ro
+
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    hostname: rabbitmq
+    restart: always
+    env_file:
+      - ./envs/rabbitmq.env
+    environment:
+      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbit log_levels [{connection,error},{default,error}] disk_free_limit 2147483648
+    volumes:
+      - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq
+      - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      - ${CERTIFICATE_CHAIN_PATH}:/cert/chain.pem:ro
+      - ${CERTIFICATE_PRIVKEY_PATH}:/cert/privkey.pem:ro
+      - ${CERTIFICATE_CERT_PATH}:/cert/cert.pem:ro
+    ports:
+      - "15672:15672"
+      - "15671:15671"
+      - "5672:5672"
+      - "5671:5671"
+
+  xuser:
+    hostname: xuser
+    image: cr.b1-it.ru/planx/x-user:main
+    ports:
+      - "25001:25001"
+    depends_on:
+      - rabbitmq
+    env_file:
+      - ./envs/common.env
+      - ./envs/x-user.env
+    volumes:
+      - ${CERTIFICATE_FULLCHAIN_PATH}:/cert/fullchain.pem:ro
+      - ${CERTIFICATE_PRIVKEY_PATH}:/cert/privkey.pem:ro
+
+  xmodel:
+    hostname: xmodel
+    image: cr.b1-it.ru/planx/x-model:main
+    ports:
+      - "25002:25002"
+    depends_on:
+      - rabbitmq
+    env_file:
+      - ./envs/common.env
+      - ./envs/x-model.env
+    volumes:
+      - ${CERTIFICATE_FULLCHAIN_PATH}:/cert/fullchain.pem:ro
+      - ${CERTIFICATE_PRIVKEY_PATH}:/cert/privkey.pem:ro
+
+  xsyncagent:
+    image: cr.b1-it.ru/planx/x-syncagent-py:main
+    ports:
+      - "25200:25200"
+    depends_on:
+      - rabbitmq
+    env_file:
+      - ./envs/common.env
+      - ./envs/x-syncagent.env
+    volumes:
+      - ${CERTIFICATE_FULLCHAIN_PATH}:/cert/fullchain.pem:ro
+      - ${CERTIFICATE_PRIVKEY_PATH}:/cert/privkey.pem:ro
+
+  xlog:
+    hostname: xlog
+    image: cr.b1-it.ru/planx/x-log:main
+    ports:
+      - "25003:25003"
+    depends_on:
+      - rabbitmq
+    env_file:
+      - ./envs/common.env
+      - ./envs/x-log.env
+    volumes:
+      - ${CERTIFICATE_FULLCHAIN_PATH}:/cert/fullchain.pem:ro
+      - ${CERTIFICATE_PRIVKEY_PATH}:/cert/privkey.pem:ro
+
+  xobject:
+    hostname: xobject
+    image: cr.b1-it.ru/planx/x-object:main
+    ports:
+      - "25010:25010"
+    depends_on:
+      - rabbitmq
+    env_file:
+      - ./envs/common.env
+      - ./envs/x-object.env
+    volumes:
+      - ${CERTIFICATE_FULLCHAIN_PATH}:/cert/fullchain.pem:ro
+      - ${CERTIFICATE_PRIVKEY_PATH}:/cert/privkey.pem:ro
+
+  xtransfer:
+    hostname: xtransfer
+    image: cr.b1-it.ru/planx/x-transfer-py:main
+    ports:
+      - "25011:25011"
+    depends_on:
+      - rabbitmq
+    env_file:
+      - ./envs/common.env
+      - ./envs/x-transfer.env
+    volumes:
+      - ${CERTIFICATE_FULLCHAIN_PATH}:/cert/fullchain.pem:ro
+      - ${CERTIFICATE_PRIVKEY_PATH}:/cert/privkey.pem:ro
+
+  xmath:
+    hostname: xmath
+    image: cr.b1-it.ru/planx/x-math:main
+    ports:
+      - "25013:25013"
+    env_file:
+      - ./envs/common.env
+      - ./envs/x-math.env
+    volumes:
+      - ${CERTIFICATE_FULLCHAIN_PATH}:/cert/fullchain.pem:ro
+      - ${CERTIFICATE_PRIVKEY_PATH}:/cert/privkey.pem:ro
+
+  xks:
+    hostname: xks
+    image: cr.b1-it.ru/planx/x-ks:main
+    ports:
+      - "25012:25012"
+    depends_on:
+      - rabbitmq
+    env_file:
+      - ./envs/common.env
+      - ./envs/x-ks.env
+    volumes:
+      - ${CERTIFICATE_FULLCHAIN_PATH}:/cert/fullchain.pem:ro
+      - ${CERTIFICATE_PRIVKEY_PATH}:/cert/privkey.pem:ro
+
+  xforecasting:
+    hostname: xforecasting
+    image: cr.b1-it.ru/planx/x-forecasting:main
+    ports:
+      - "25014:25014"
+    env_file:
+      - ./envs/common.env
+      - ./envs/x-forecasting.env
+    volumes:
+      - ${CERTIFICATE_FULLCHAIN_PATH}:/cert/fullchain.pem:ro
+      - ${CERTIFICATE_PRIVKEY_PATH}:/cert/privkey.pem:ro
+
+  xtransfer-agent:
+    image: cr.b1-it.ru/planx/x-transfer-agent:main
+    env_file:
+      - ./envs/common.env
+      - ./envs/x-transfer-agent.env
+
+  frontend:
+    image: cr.b1-it.ru/planx/frontend:main
+    ports:
+      - "3000:80"
+    env_file:
+      - ./envs/frontend.env
+    volumes:
+      - ${CERTIFICATE_FULLCHAIN_PATH}:/cert/fullchain.pem:ro
+      - ${CERTIFICATE_PRIVKEY_PATH}:/cert/privkey.pem:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "0.20"
+
+  gateway:
+    image: cr.b1-it.ru/planx/gateway:main
+    depends_on:
+      - xuser
+      - xmodel
+      - xsyncagent
+      - xobject
+      - xtransfer
+      - xmath
+      - xks
+      - xforecasting
+      - frontend
+    ports:
+      - "25000:80"
+    environment:
+      - FRONTEND_HOST=frontend:80
+      - FRONTEND_PROTOCOL=http
+      - XKS_HOST=xks:25012
+      - XKS_PROTOCOL=https
+      - XMATH_HOST=xmath:25013
+      - XMATH_PROTOCOL=https
+      - XMODEL_HOST=xmodel:25002
+      - XMODEL_PROTOCOL=https
+      - XOBJECT_HOST=xobject:25010
+      - XOBJECT_PROTOCOL=https
+      - XSYNCAGENT_HOST=xsyncagent:25200
+      - XSYNCAGENT_PROTOCOL=https
+      - XTRANSFER_HOST=xtransfer:25011
+      - XTRANSFER_PROTOCOL=https
+      - XUSER_HOST=xuser:25001
+      - XUSER_PROTOCOL=https
+      - XFORECASTING_HOST=xforecasting:25014
+      - XFORECASTING_PROTOCOL=https
